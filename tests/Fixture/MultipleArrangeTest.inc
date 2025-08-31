@@ -1,6 +1,6 @@
 <?php
 
-final class FooTest extends PHPUnit\Framework\TestCase
+final class MultipleArrangeTest extends PHPUnit\Framework\TestCase
 {
     public function testFoo(): void
     {
@@ -15,7 +15,7 @@ final class FooTest extends PHPUnit\Framework\TestCase
 -----
 <?php
 
-final class FooTest extends PHPUnit\Framework\TestCase
+final class MultipleArrangeTest extends PHPUnit\Framework\TestCase
 {
     public function testFoo(): void
     {

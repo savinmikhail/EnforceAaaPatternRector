@@ -63,7 +63,7 @@ tasks:
 
   dist-size-optimize:
     deps: [ install ]
-    cmd: 'vendor/bin/export-ignore check {{.CLI_ARGS}}'
+    cmd: 'vendor/bin/dist-size-optimizer check {{.CLI_ARGS}}'
 
   check:
     cmds:

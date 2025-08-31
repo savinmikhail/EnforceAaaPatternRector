@@ -7,14 +7,13 @@ namespace SavinMikhail\EnforceAaaPatternRector;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\Exception\PoorDocumentationException;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
-
-use function count;
 
 final class EnforceAaaPatternRector extends AbstractRector
 {
@@ -59,20 +58,42 @@ final class EnforceAaaPatternRector extends AbstractRector
         return [ClassMethod::class];
     }
 
-    public function refactor(Node $node)
+    private function hasAaaComment(Node $stmt): bool
     {
-        if (! $node instanceof ClassMethod) {
-            return null;
+        foreach ($stmt->getComments() as $comment) {
+            $text = strtolower(string: trim(string: $comment->getText()));
+            if (str_contains(haystack: $text, needle: 'arrange') || str_contains(haystack: $text, needle: 'act') || str_contains(haystack: $text, needle: 'assert')) {
+                return true;
+            }
         }
 
-        if ($node->stmts === null || count(value: $node->stmts) === 0) {
-            return null;
+        return false;
+    }
+
+    private function prependAaaComment(Node $stmt, string $aaaComment): void
+    {
+        $existing = $stmt->getComments();
+        $aaa = new Comment(text: '// ' . $aaaComment);
+
+        // если первый коммент уже AAA — не дублируем
+        if ($existing !== []) {
+            $firstText = strtolower(string: trim(string: $existing[0]->getText()));
+            if (str_contains(haystack: $firstText, needle: strtolower(string: $aaaComment))) {
+                return;
+            }
         }
 
-        $stmts = $node->stmts;
+        $stmt->setAttribute('comments', array_merge([$aaa], $existing));
+    }
+
+    /**
+     * @param Stmt[] $stmts
+     */
+    private function findFirstAssert(array $stmts): null|int|string
+    {
         $assertIndex = null;
 
-        // Find first assert statement
+        // ищем первый assert
         foreach ($stmts as $i => $stmt) {
             if (! $stmt instanceof Expression) {
                 continue;
@@ -91,33 +112,50 @@ final class EnforceAaaPatternRector extends AbstractRector
             }
         }
 
+        return $assertIndex;
+    }
+
+    public function refactor(Node $node): ?Node
+    {
+        if (! $node instanceof ClassMethod) {
+            return null;
+        }
+
+        if ($node->stmts === null || $node->stmts === []) {
+            return null;
+        }
+
+        $stmts = $node->stmts;
+
+        $assertIndex = $this->findFirstAssert(stmts: $stmts);
+
         if ($assertIndex === null) {
-            return null; // no assert found
+            return null;
         }
 
         $changed = false;
 
-        // Arrange: first statement
-        if (isset($stmts[0]) && count(value: $stmts[0]->getComments() ?? []) === 0) {
-            $stmts[0]->setAttribute(key: 'comments', value: [new Comment(text: '// Arrange')]);
+        // arrange
+        if (isset($stmts[0]) && ! $this->hasAaaComment(stmt: $stmts[0])) {
+            $this->prependAaaComment(stmt: $stmts[0], aaaComment: 'Arrange');
             $changed = true;
         }
 
-        // Act: statement before first assert
+        // act
         $actIndex = $assertIndex - 1;
-        if ($actIndex >= 0 && isset($stmts[$actIndex]) && count(value: $stmts[$actIndex]->getComments() ?? []) === 0) {
-            $stmts[$actIndex]->setAttribute(key: 'comments', value: [new Comment(text: '// Act')]);
+        if ($actIndex >= 0 && isset($stmts[$actIndex]) && ! $this->hasAaaComment(stmt: $stmts[$actIndex])) {
+            $this->prependAaaComment(stmt: $stmts[$actIndex], aaaComment: 'Act');
             $changed = true;
         }
 
-        // Assert: first assert statement
-        if (isset($stmts[$assertIndex]) && count(value: $stmts[$assertIndex]->getComments() ?? []) === 0) {
-            $stmts[$assertIndex]->setAttribute(key: 'comments', value: [new Comment(text: '// Assert')]);
+        // assert
+        if (isset($stmts[$assertIndex]) && ! $this->hasAaaComment(stmt: $stmts[$assertIndex])) {
+            $this->prependAaaComment(stmt: $stmts[$assertIndex], aaaComment: 'Assert');
             $changed = true;
         }
 
         if (! $changed) {
-            return null; // nothing to modify
+            return null;
         }
 
         $node->stmts = $stmts;

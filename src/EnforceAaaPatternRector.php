@@ -14,6 +14,8 @@ use Symplify\RuleDocGenerator\Exception\PoorDocumentationException;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
+use function count;
+
 final class EnforceAaaPatternRector extends AbstractRector
 {
     /**
@@ -63,7 +65,7 @@ final class EnforceAaaPatternRector extends AbstractRector
             return null;
         }
 
-        if ($node->stmts === null || count($node->stmts) === 0) {
+        if ($node->stmts === null || count(value: $node->stmts) === 0) {
             return null;
         }
 
@@ -79,10 +81,10 @@ final class EnforceAaaPatternRector extends AbstractRector
             $expr = $stmt->expr;
             if ($expr instanceof MethodCall
                 && $expr->var instanceof Node\Expr\Variable
-                && $this->isName($expr->var, 'this')
+                && $this->isName(node: $expr->var, name: 'this')
             ) {
-                $methodName = $this->getName($expr->name);
-                if ($methodName !== null && str_starts_with($methodName, 'assert')) {
+                $methodName = $this->getName(node: $expr->name);
+                if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
                     $assertIndex = $i;
                     break;
                 }
@@ -96,21 +98,21 @@ final class EnforceAaaPatternRector extends AbstractRector
         $changed = false;
 
         // Arrange: first statement
-        if (isset($stmts[0]) && count($stmts[0]->getComments() ?? []) === 0) {
-            $stmts[0]->setAttribute('comments', [new Comment('// Arrange')]);
+        if (isset($stmts[0]) && count(value: $stmts[0]->getComments() ?? []) === 0) {
+            $stmts[0]->setAttribute(key: 'comments', value: [new Comment(text: '// Arrange')]);
             $changed = true;
         }
 
         // Act: statement before first assert
         $actIndex = $assertIndex - 1;
-        if ($actIndex >= 0 && isset($stmts[$actIndex]) && count($stmts[$actIndex]->getComments() ?? []) === 0) {
-            $stmts[$actIndex]->setAttribute('comments', [new Comment('// Act')]);
+        if ($actIndex >= 0 && isset($stmts[$actIndex]) && count(value: $stmts[$actIndex]->getComments() ?? []) === 0) {
+            $stmts[$actIndex]->setAttribute(key: 'comments', value: [new Comment(text: '// Act')]);
             $changed = true;
         }
 
         // Assert: first assert statement
-        if (isset($stmts[$assertIndex]) && count($stmts[$assertIndex]->getComments() ?? []) === 0) {
-            $stmts[$assertIndex]->setAttribute('comments', [new Comment('// Assert')]);
+        if (isset($stmts[$assertIndex]) && count(value: $stmts[$assertIndex]->getComments() ?? []) === 0) {
+            $stmts[$assertIndex]->setAttribute(key: 'comments', value: [new Comment(text: '// Assert')]);
             $changed = true;
         }
 
@@ -119,6 +121,7 @@ final class EnforceAaaPatternRector extends AbstractRector
         }
 
         $node->stmts = $stmts;
+
         return $node;
     }
 }

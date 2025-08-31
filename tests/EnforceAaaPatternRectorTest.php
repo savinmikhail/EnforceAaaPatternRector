@@ -20,7 +20,7 @@ final class EnforceAaaPatternRectorTest extends AbstractRectorTestCase
     /**
      * @return Iterator<array<int, string>>
      */
-    public static function provideCases(): Iterator
+    public static function provideCases(): iterable
     {
         return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }

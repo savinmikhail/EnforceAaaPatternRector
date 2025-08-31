@@ -1,18 +1,22 @@
 {
     "name": "savinmikhail/enforce-aaa-pattern-rector",
-    "type": "rector-extension",
-    "license": "MIT",
     "description": "Rector rule to enforce the presence of 'arrange', 'act', 'assert' structure of phpunit tests",
+    "license": "MIT",
+    "type": "rector-extension",
+    "keywords": [
+        "static analysis",
+        "dev"
+    ],
     "authors": [
         {
             "name": "Savin Mikhail",
             "email": "mikhail.d.savin@gmail.com"
         }
     ],
-    "keywords": [
-        "static analysis",
-        "dev"
-    ],
+    "require": {
+        "php": ">=8.2",
+        "rector/rector": "^2.1.4"
+    },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.45",
         "friendsofphp/php-cs-fixer": "^3.68.5",
@@ -43,9 +47,5 @@
             "php": "8.2"
         },
         "sort-packages": true
-    },
-    "require": {
-        "php": ">=8.2",
-        "rector/rector": "^2.1.4"
     }
 }

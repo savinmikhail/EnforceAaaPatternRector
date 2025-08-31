@@ -13,6 +13,7 @@
             "email": "mikhail.d.savin@gmail.com"
         }
     ],
+    "homepage": "https://github.com/savinmikhail/EnforceAaaPatternRector",
     "require": {
         "php": ">=8.2",
         "rector/rector": "^2.1.4"

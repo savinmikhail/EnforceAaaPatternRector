@@ -44,6 +44,7 @@
         "sort-packages": true
     },
     "require": {
-        "php": ">=8.2"
+        "php": ">=8.2",
+        "rector/rector": "^2.1.4"
     }
 }

@@ -65,15 +65,15 @@ tasks:
     deps: [ install ]
     cmd: 'vendor/bin/dist-size-optimizer check {{.CLI_ARGS}}'
 
-  check:
+  quality:
     cmds:
-      - task: cs
+      - task: cs-fix
 #      - task: stan
-      - task: rector
+      - task: rector-fix
       - task: test
       - task: composer-validate
       - task: composer-audit
-      - task: composer-normalize
+      - task: composer-normalize-fix
 #      - task: composer-check-require
 #      - task: composer-check-unused
       - task: dist-size-optimize

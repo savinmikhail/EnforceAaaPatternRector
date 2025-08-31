@@ -63,14 +63,14 @@ final class EnforceAaaPatternRector extends AbstractRector
             return null;
         }
 
-        if ($node->stmts === null) {
+        if ($node->stmts === null || count($node->stmts) === 0) {
             return null;
         }
 
         $stmts = $node->stmts;
-
         $assertIndex = null;
 
+        // Find first assert statement
         foreach ($stmts as $i => $stmt) {
             if (! $stmt instanceof Expression) {
                 continue;
@@ -79,37 +79,46 @@ final class EnforceAaaPatternRector extends AbstractRector
             $expr = $stmt->expr;
             if ($expr instanceof MethodCall
                 && $expr->var instanceof Node\Expr\Variable
-                && $this->isName(node: $expr->var, name: 'this')
+                && $this->isName($expr->var, 'this')
             ) {
-                $methodName = $this->getName(node: $expr->name);
-                if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
+                $methodName = $this->getName($expr->name);
+                if ($methodName !== null && str_starts_with($methodName, 'assert')) {
                     $assertIndex = $i;
                     break;
                 }
             }
-
         }
 
         if ($assertIndex === null) {
-            return null; // no assert in this method
+            return null; // no assert found
         }
 
-        // arrange: first statement
-        if (isset($stmts[0])) {
-            $stmts[0]->setAttribute(key: 'comments', value: [new Comment(text: '// Arrange')]);
+        $changed = false;
+
+        // Arrange: first statement
+        if (isset($stmts[0]) && count($stmts[0]->getComments() ?? []) === 0) {
+            $stmts[0]->setAttribute('comments', [new Comment('// Arrange')]);
+            $changed = true;
         }
 
-        // act: the statement right before the assert part
+        // Act: statement before first assert
         $actIndex = $assertIndex - 1;
-        if ($actIndex >= 0 && isset($stmts[$actIndex])) {
-            $stmts[$actIndex]->setAttribute(key: 'comments', value: [new Comment(text: '// Act')]);
+        if ($actIndex >= 0 && isset($stmts[$actIndex]) && count($stmts[$actIndex]->getComments() ?? []) === 0) {
+            $stmts[$actIndex]->setAttribute('comments', [new Comment('// Act')]);
+            $changed = true;
         }
 
-        // assert: the first assert
-        $stmts[$assertIndex]->setAttribute(key: 'comments', value: [new Comment(text: '// Assert')]);
+        // Assert: first assert statement
+        if (isset($stmts[$assertIndex]) && count($stmts[$assertIndex]->getComments() ?? []) === 0) {
+            $stmts[$assertIndex]->setAttribute('comments', [new Comment('// Assert')]);
+            $changed = true;
+        }
+
+        if (! $changed) {
+            return null; // nothing to modify
+        }
 
         $node->stmts = $stmts;
-
         return $node;
     }
 }

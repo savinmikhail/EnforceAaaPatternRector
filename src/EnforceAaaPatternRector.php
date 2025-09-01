@@ -134,6 +134,10 @@ final class EnforceAaaPatternRector extends AbstractRector
             return null;
         }
 
+        if (! $this->isTestMethod(classMethod: $node)) {
+            return null;
+        }
+
         if ($node->stmts === null || $node->stmts === []) {
             return null;
         }
@@ -174,5 +178,17 @@ final class EnforceAaaPatternRector extends AbstractRector
         $node->stmts = $stmts;
 
         return $node;
+    }
+
+    private function isTestMethod(ClassMethod $classMethod): bool
+    {
+        $name = $this->getName(node: $classMethod);
+        if ($name !== null && str_starts_with(haystack: $name, needle: 'test')) {
+            return true;
+        }
+
+        $docComment = $classMethod->getDocComment();
+
+        return $docComment !== null && str_contains(haystack: strtolower(string: $docComment->getText()), needle: '@test');
     }
 }

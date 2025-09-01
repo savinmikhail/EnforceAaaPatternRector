@@ -83,11 +83,23 @@ final class EnforceAaaPatternRector extends AbstractRector
         $filteredComments = [];
 
         foreach ($comments as $comment) {
-            $text = strtolower(string: trim(string: $comment->getText()));
-            // Remove existing AAA comments
-            if (!str_contains(haystack: $text, needle: 'arrange')
-                && !str_contains(haystack: $text, needle: 'act')
-                && !str_contains(haystack: $text, needle: 'assert')) {
+            $text = trim(string: $comment->getText());
+            $normalizedText = strtolower(string: $text);
+
+            // Only remove comments that are specifically AAA pattern comments
+            // Check if the comment is ONLY an AAA comment (possibly with // or /* */ wrapper)
+            $isAaaComment = false;
+
+            // Remove comment markers and whitespace to get core content
+            $coreText = trim(string: (string) preg_replace(pattern: '/^\/\/\s*|^\/\*\s*|\s*\*\/$/', replacement: '', subject: $text));
+            $coreTextLower = strtolower(string: $coreText);
+
+            // Check if the core text is exactly one of the AAA keywords
+            if ($coreTextLower === 'arrange' || $coreTextLower === 'act' || $coreTextLower === 'assert') {
+                $isAaaComment = true;
+            }
+
+            if (!$isAaaComment) {
                 $filteredComments[] = $comment;
             }
         }
@@ -145,7 +157,7 @@ final class EnforceAaaPatternRector extends AbstractRector
      */
     private function findLastNonAssert(array $stmts, int $firstAssertIndex): int
     {
-        // Find the last statement before the first assert that is not an assert statement
+        // Find the last statement before the first assert that is not an assert
         for ($i = $firstAssertIndex - 1; $i >= 0; --$i) {
             if (!$this->isAssertStatement(stmt: $stmts[$i])) {
                 return $i;

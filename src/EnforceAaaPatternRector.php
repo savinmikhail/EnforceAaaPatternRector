@@ -16,8 +16,6 @@ use Symplify\RuleDocGenerator\Exception\PoorDocumentationException;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
-use function array_slice;
-
 final class EnforceAaaPatternRector extends AbstractRector
 {
     /**
@@ -79,37 +77,25 @@ final class EnforceAaaPatternRector extends AbstractRector
         return false;
     }
 
-    private function normalizeAaaComment(Node $stmt, string $expected): bool
+    private function removeAaaComments(Node $stmt): void
     {
         $comments = $stmt->getComments();
+        $filteredComments = [];
 
-        if ($comments === []) {
-            $this->prependAaaComment(stmt: $stmt, aaaComment: $expected);
-
-            return true;
+        foreach ($comments as $comment) {
+            $text = strtolower(string: trim(string: $comment->getText()));
+            // Remove existing AAA comments
+            if (!str_contains(haystack: $text, needle: 'arrange')
+                && !str_contains(haystack: $text, needle: 'act')
+                && !str_contains(haystack: $text, needle: 'assert')) {
+                $filteredComments[] = $comment;
+            }
         }
 
-        $firstText = strtolower(string: trim(string: $comments[0]->getText()));
-
-        if (str_contains(haystack: $firstText, needle: strtolower(string: $expected))) {
-            return false; // already correct
-        }
-
-        if (str_contains(haystack: $firstText, needle: 'arrange') || str_contains(haystack: $firstText, needle: 'act') || str_contains(haystack: $firstText, needle: 'assert')) {
-            // wrong AAA → replace
-            $rest = array_slice(array: $comments, offset: 1);
-            $stmt->setAttribute('comments', [new Comment(text: '// ' . $expected), ...$rest]);
-
-            return true;
-        }
-
-        // unrelated comment → prepend expected AAA
-        $this->prependAaaComment(stmt: $stmt, aaaComment: $expected);
-
-        return true;
+        $stmt->setAttribute('comments', $filteredComments);
     }
 
-    private function prependAaaComment(Node $stmt, string $aaaComment): void
+    private function addAaaComment(Node $stmt, string $aaaComment): void
     {
         $existing = $stmt->getComments();
         $aaa = new Comment(text: '// ' . $aaaComment);
@@ -154,6 +140,54 @@ final class EnforceAaaPatternRector extends AbstractRector
         return null;
     }
 
+    /**
+     * @param Stmt[] $stmts
+     */
+    private function findLastNonAssert(array $stmts, int $firstAssertIndex): int
+    {
+        // Find the last statement before the first assert that is not an assert statement
+        for ($i = $firstAssertIndex - 1; $i >= 0; --$i) {
+            if (!$this->isAssertStatement(stmt: $stmts[$i])) {
+                return $i;
+            }
+        }
+
+        return $firstAssertIndex - 1; // fallback
+    }
+
+    private function isAssertStatement(Stmt $stmt): bool
+    {
+        if (!$stmt instanceof Expression) {
+            return false;
+        }
+
+        $expr = $stmt->expr;
+
+        // $this->assert*
+        if ($expr instanceof MethodCall
+            && $expr->var instanceof Node\Expr\Variable
+            && $this->isName(node: $expr->var, name: 'this')
+        ) {
+            $methodName = $this->getName(node: $expr->name);
+            if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
+                return true;
+            }
+        }
+
+        // self::assert*
+        if ($expr instanceof StaticCall
+            && $expr->class instanceof Node\Name
+            && $this->isName(node: $expr->class, name: 'self')
+        ) {
+            $methodName = $this->getName(node: $expr->name);
+            if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function refactor(Node $node): ?Node
     {
         if (! $node instanceof ClassMethod) {
@@ -170,31 +204,39 @@ final class EnforceAaaPatternRector extends AbstractRector
 
         $stmts = $node->stmts;
 
-        $assertIndex = $this->findFirstAssert(stmts: $stmts);
+        $firstAssertIndex = $this->findFirstAssert(stmts: $stmts);
 
-        if ($assertIndex === null) {
+        if ($firstAssertIndex === null) {
             return null;
         }
 
-        $changed = false;
+        // Remove all existing AAA comments first
+        foreach ($stmts as $stmt) {
+            $this->removeAaaComments(stmt: $stmt);
+        }
 
-        // Detect shortcut case: only one stmt before assert
-        if ($assertIndex === 1) {
-            // treat it as Act
-            $changed |= $this->normalizeAaaComment(stmt: $stmts[0], expected: 'Act');
+        $changed = true;
+
+        // Handle simple case: only one statement before assert (treat as Act only)
+        if ($firstAssertIndex === 1) {
+            $this->addAaaComment(stmt: $stmts[0], aaaComment: 'Act');
         } else {
+            // Multiple statements before assert
+            // First statement gets "Arrange"
             if (isset($stmts[0])) {
-                $changed |= $this->normalizeAaaComment(stmt: $stmts[0], expected: 'Arrange');
+                $this->addAaaComment(stmt: $stmts[0], aaaComment: 'Arrange');
             }
-            $actIndex = $assertIndex - 1;
-            if ($actIndex >= 0 && isset($stmts[$actIndex])) {
-                $changed |= $this->normalizeAaaComment(stmt: $stmts[$actIndex], expected: 'Act');
+
+            // Last non-assert statement before first assert gets "Act"
+            $lastActIndex = $this->findLastNonAssert(stmts: $stmts, firstAssertIndex: $firstAssertIndex);
+            if ($lastActIndex >= 0 && $lastActIndex !== 0 && isset($stmts[$lastActIndex])) {
+                $this->addAaaComment(stmt: $stmts[$lastActIndex], aaaComment: 'Act');
             }
         }
 
-        // assert
-        if (isset($stmts[$assertIndex])) {
-            $changed |= $this->normalizeAaaComment(stmt: $stmts[$assertIndex], expected: 'Assert');
+        // First assert gets "Assert"
+        if (isset($stmts[$firstAssertIndex])) {
+            $this->addAaaComment(stmt: $stmts[$firstAssertIndex], aaaComment: 'Assert');
         }
 
         return $changed ? $node : null;

@@ -7,6 +7,7 @@ namespace SavinMikhail\EnforceAaaPatternRector;
 use PhpParser\Comment;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
@@ -110,7 +111,19 @@ final class EnforceAaaPatternRector extends AbstractRector
                     break;
                 }
             }
+
+            if ($expr instanceof StaticCall
+                && $expr->class instanceof Node\Name
+                && $this->isName(node: $expr->class, name: 'self')
+            ) {
+                $methodName = $this->getName(node: $expr->name);
+                if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
+                    $assertIndex = $i;
+                    break;
+                }
+            }
         }
+
 
         return $assertIndex;
     }

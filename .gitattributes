@@ -1,0 +1,10 @@
+/.gitignore export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/phpstan.neon export-ignore
+/rector.php export-ignore
+/phpunit.xml export-ignore
+/Taskfile.yml export-ignore
+/Dockerfile export-ignore
+/docker-compose.yaml export-ignore
+/tests/ export-ignore
+/Tests/ export-ignore

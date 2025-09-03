@@ -22,7 +22,7 @@ jobs:
         id: dist
         run: |
           set +e
-          bin/dist-size-optimizer check --dry-run > /tmp/out.txt
+          vendor/bin/dist-size-optimizer check --dry-run > /tmp/out.txt
           exit_code=$?
           cat /tmp/out.txt
           if [ $exit_code -eq 0 ]; then

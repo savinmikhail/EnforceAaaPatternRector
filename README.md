@@ -1,5 +1,4 @@
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/savinmikhail/EnforceAaaPatternRector/badges/quality-score.png?b=main)](https://scrutinizer-ci.com/g/savinmikhail/EnforceAaaPatternRector/?branch=main)
-
 [![Code Coverage](https://scrutinizer-ci.com/g/savinmikhail/EnforceAaaPatternRector/badges/coverage.png?b=main)](https://scrutinizer-ci.com/g/savinmikhail/EnforceAaaPatternRector/?branch=main)
 
 # EnforceAaaPatternRector

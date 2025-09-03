@@ -82,7 +82,7 @@ final class EnforceAaaPatternRector extends AbstractRector
         $coreText = trim(string: (string) preg_replace(pattern: '/^\/\/\s*|^\/\*\s*|\s*\*\/$/', replacement: '', subject: $text));
         $coreTextLower = strtolower(string: $coreText);
 
-        return in_array($coreTextLower, ['arrange', 'act', 'assert'], true);
+        return in_array(needle: $coreTextLower, haystack: ['arrange', 'act', 'assert'], strict: true);
     }
 
     private function removeAaaComments(Node $stmt): void

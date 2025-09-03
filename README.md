@@ -26,11 +26,7 @@ The **EnforceAaaPatternRector** rule helps maintain consistent **Arrangeâ€“Actâ€
  }
 ```
 
-This feature works for:
-
-* Any PHPUnit test method containing at least one `$this->assert*()` call
-* Idempotent: existing comments are preserved
-* Safe: does not reorder statements, only annotates
+This tool simply add comments and removing misplaced ones. Logic is simple: the line just above the first `Assert` call is commented as `Assert`, the first statement above it considered as `Act` and finally the very first line of the test method declaration commented as `Arrange`. So if the comment seems to you misplaced, consider rearrange your test accordingly. Nevertheless contributing is always welcomed
 
 ---
 

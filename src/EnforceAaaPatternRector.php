@@ -16,6 +16,8 @@ use Symplify\RuleDocGenerator\Exception\PoorDocumentationException;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
+use function in_array;
+
 final class EnforceAaaPatternRector extends AbstractRector
 {
     /**
@@ -65,41 +67,29 @@ final class EnforceAaaPatternRector extends AbstractRector
     private function isTestMethod(ClassMethod $classMethod): bool
     {
         $name = $this->getName(node: $classMethod);
-        if ($name !== null && str_starts_with(haystack: $name, needle: 'test')) {
+        if (str_starts_with(haystack: $name, needle: 'test')) {
             return true;
         }
 
         $docComment = $classMethod->getDocComment();
-        if ($docComment !== null && str_contains(haystack: strtolower(string: $docComment->getText()), needle: '@test')) {
-            return true;
-        }
 
-        return false;
+        return $docComment !== null && str_contains(haystack: strtolower(string: $docComment->getText()), needle: '@test');
+    }
+
+    private function isAaaComment(Comment $comment): bool
+    {
+        $text = trim(string: $comment->getText());
+        $coreText = trim(string: (string) preg_replace(pattern: '/^\/\/\s*|^\/\*\s*|\s*\*\/$/', replacement: '', subject: $text));
+        $coreTextLower = strtolower(string: $coreText);
+
+        return in_array($coreTextLower, ['arrange', 'act', 'assert'], true);
     }
 
     private function removeAaaComments(Node $stmt): void
     {
-        $comments = $stmt->getComments();
         $filteredComments = [];
-
-        foreach ($comments as $comment) {
-            $text = trim(string: $comment->getText());
-            $normalizedText = strtolower(string: $text);
-
-            // Only remove comments that are specifically AAA pattern comments
-            // Check if the comment is ONLY an AAA comment (possibly with // or /* */ wrapper)
-            $isAaaComment = false;
-
-            // Remove comment markers and whitespace to get core content
-            $coreText = trim(string: (string) preg_replace(pattern: '/^\/\/\s*|^\/\*\s*|\s*\*\/$/', replacement: '', subject: $text));
-            $coreTextLower = strtolower(string: $coreText);
-
-            // Check if the core text is exactly one of the AAA keywords
-            if ($coreTextLower === 'arrange' || $coreTextLower === 'act' || $coreTextLower === 'assert') {
-                $isAaaComment = true;
-            }
-
-            if (!$isAaaComment) {
+        foreach ($stmt->getComments() as $comment) {
+            if (! $this->isAaaComment(comment: $comment)) {
                 $filteredComments[] = $comment;
             }
         }
@@ -114,38 +104,37 @@ final class EnforceAaaPatternRector extends AbstractRector
         $stmt->setAttribute('comments', array_merge([$aaa], $existing));
     }
 
+    private function isAssertCall(Node\Expr $expr): bool
+    {
+        if ($expr instanceof MethodCall
+            && $expr->var instanceof Node\Expr\Variable
+            && $this->isName(node: $expr->var, name: 'this')
+        ) {
+            $methodName = $this->getName(node: $expr->name);
+
+            return $methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert');
+        }
+
+        if ($expr instanceof StaticCall
+            && $expr->class instanceof Node\Name
+            && $this->isName(node: $expr->class, name: 'self')
+        ) {
+            $methodName = $this->getName(node: $expr->name);
+
+            return $methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert');
+        }
+
+        return false;
+    }
+
     /**
      * @param Stmt[] $stmts
      */
     private function findFirstAssert(array $stmts): ?int
     {
         foreach ($stmts as $i => $stmt) {
-            if (! $stmt instanceof Expression) {
-                continue;
-            }
-
-            $expr = $stmt->expr;
-
-            // $this->assert*
-            if ($expr instanceof MethodCall
-                && $expr->var instanceof Node\Expr\Variable
-                && $this->isName(node: $expr->var, name: 'this')
-            ) {
-                $methodName = $this->getName(node: $expr->name);
-                if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
-                    return $i;
-                }
-            }
-
-            // self::assert*
-            if ($expr instanceof StaticCall
-                && $expr->class instanceof Node\Name
-                && $this->isName(node: $expr->class, name: 'self')
-            ) {
-                $methodName = $this->getName(node: $expr->name);
-                if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
-                    return $i;
-                }
+            if ($stmt instanceof Expression && $this->isAssertCall(expr: $stmt->expr)) {
+                return $i;
             }
         }
 
@@ -159,7 +148,7 @@ final class EnforceAaaPatternRector extends AbstractRector
     {
         // Find the last statement before the first assert that is not an assert
         for ($i = $firstAssertIndex - 1; $i >= 0; --$i) {
-            if (!$this->isAssertStatement(stmt: $stmts[$i])) {
+            if (! $this->isAssertStatement(stmt: $stmts[$i])) {
                 return $i;
             }
         }
@@ -169,35 +158,7 @@ final class EnforceAaaPatternRector extends AbstractRector
 
     private function isAssertStatement(Stmt $stmt): bool
     {
-        if (!$stmt instanceof Expression) {
-            return false;
-        }
-
-        $expr = $stmt->expr;
-
-        // $this->assert*
-        if ($expr instanceof MethodCall
-            && $expr->var instanceof Node\Expr\Variable
-            && $this->isName(node: $expr->var, name: 'this')
-        ) {
-            $methodName = $this->getName(node: $expr->name);
-            if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
-                return true;
-            }
-        }
-
-        // self::assert*
-        if ($expr instanceof StaticCall
-            && $expr->class instanceof Node\Name
-            && $this->isName(node: $expr->class, name: 'self')
-        ) {
-            $methodName = $this->getName(node: $expr->name);
-            if ($methodName !== null && str_starts_with(haystack: $methodName, needle: 'assert')) {
-                return true;
-            }
-        }
-
-        return false;
+        return $stmt instanceof Expression && $this->isAssertCall(expr: $stmt->expr);
     }
 
     public function refactor(Node $node): ?Node
@@ -227,8 +188,6 @@ final class EnforceAaaPatternRector extends AbstractRector
             $this->removeAaaComments(stmt: $stmt);
         }
 
-        $changed = true;
-
         // Handle simple case: only one statement before assert (treat as Act only)
         if ($firstAssertIndex === 1) {
             $this->addAaaComment(stmt: $stmts[0], aaaComment: 'Act');
@@ -241,7 +200,7 @@ final class EnforceAaaPatternRector extends AbstractRector
 
             // Last non-assert statement before first assert gets "Act"
             $lastActIndex = $this->findLastNonAssert(stmts: $stmts, firstAssertIndex: $firstAssertIndex);
-            if ($lastActIndex >= 0 && $lastActIndex !== 0 && isset($stmts[$lastActIndex])) {
+            if ($lastActIndex > 0 && isset($stmts[$lastActIndex])) {
                 $this->addAaaComment(stmt: $stmts[$lastActIndex], aaaComment: 'Act');
             }
         }
@@ -251,6 +210,6 @@ final class EnforceAaaPatternRector extends AbstractRector
             $this->addAaaComment(stmt: $stmts[$firstAssertIndex], aaaComment: 'Assert');
         }
 
-        return $changed ? $node : null;
+        return $node;
     }
 }

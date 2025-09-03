@@ -4,21 +4,18 @@ tasks:
     cmd: 'docker compose exec rector-php sh -c "vendor/bin/phpunit --coverage-html var/coverage"'
 
   cs-fix:
+    deps: [install]
     cmd: 'docker compose exec rector-php sh -c "vendor/bin/php-cs-fixer fix --diff --verbose {{.CLI_ARGS}}"'
 
   cs:
+    deps: [install]
     cmds:
       - task: cs-fix
         vars:
           CLI_ARGS: "--dry-run --stop-on-violation {{.CLI_ARGS}}"
 
-  run:
-    cmds:
-      - task: rector
-        vars:
-          CLI_ARGS: "--config=/Users/mikhailsavin/projects/AddNamedArgumentsRector/rector.dev.php {{.CLI_ARGS}}"
-
   rector-fix:
+    deps: [install]
     cmd: 'vendor/bin/rector process {{.CLI_ARGS}}'
 
   rector:
@@ -28,9 +25,11 @@ tasks:
           CLI_ARGS: "--dry-run {{.CLI_ARGS}}"
 
   stan:
+    deps: [install]
     cmd: 'docker compose exec rector-php sh -c "vendor/bin/phpstan {{.CLI_ARGS}}"'
 
   install:
+    deps: [up]
     cmd: 'docker compose exec rector-php sh -c "composer install"'
     sources:
       - composer.json
@@ -64,6 +63,9 @@ tasks:
   dist-size-optimize:
     deps: [ install ]
     cmd: 'vendor/bin/dist-size-optimizer check {{.CLI_ARGS}}'
+
+  up:
+    cmd: 'docker compose up -d'
 
   quality:
     cmds:

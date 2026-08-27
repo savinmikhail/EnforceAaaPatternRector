@@ -1,11 +1,18 @@
 {
     "name": "savinmikhail/enforce-aaa-pattern-rector",
-    "description": "Rector rule to enforce the presence of 'arrange', 'act', 'assert' structure of phpunit tests",
+    "description": "Rector extension that adds and enforces Arrange-Act-Assert (AAA / Given-When-Then) structure in PHPUnit tests.",
     "license": "MIT",
     "type": "rector-extension",
     "keywords": [
+        "aaa pattern",
+        "arrange act assert",
+        "dev",
+        "given when then",
+        "phpunit",
+        "rector",
+        "rector extension",
         "static analysis",
-        "dev"
+        "unit testing"
     ],
     "authors": [
         {
